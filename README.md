@@ -15,7 +15,7 @@ We read the ELF header, looking to find two sections:
 * `.dynstr` so we can check nams.
 * `.dynsym`, as it contains the offset to `main`.
 
-We just need to know the start of `.dynstr', as when we walk through the table
+We just need to know the start of `.dynstr`, as when we walk through the table
 in `.dynsym` it'll give us an offset in `st_name` member of the struct.
 
 ### Finding PLT entries.
