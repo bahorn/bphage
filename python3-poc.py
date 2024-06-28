@@ -8,7 +8,7 @@ SHT_DYNSYM = 0x0b
 SHT_STRTAB = 0x03
 
 ENDBR = b'\xf3\x0f\x1e\xfa'
-PAYLOAD = ENDBR + b'\xeb\xfe'
+PAYLOAD = b'\xeb\xfe'
 
 
 def read_qword(f, offset):
@@ -21,6 +21,10 @@ def read_dword(f, offset):
 
 def read_word(f, offset):
     return struct.unpack('<H', f[offset:offset + 2])[0]
+
+
+def write_bytes(f, offset, data):
+    f[offset:offset + len(data)] = data
 
 
 def get_section_header(f):
@@ -80,8 +84,7 @@ def get_symbols(
             return (st_value, st_size)
 
 
-def main():
-    f = open('/bin/bash', 'rb').read()
+def discover_patch_target(f):
     e_shoff, e_shentsize, e_shnum = get_section_header(f)
     strtab_offset, _, _ = find_section(
         f, SHT_STRTAB, e_shoff, e_shentsize, e_shnum
@@ -91,15 +94,19 @@ def main():
         f, SHT_DYNSYM, e_shoff, e_shentsize, e_shnum
     )
     target_st_name = b"main"
-    st_value, st_size = get_symbols(
+    st_value, _ = get_symbols(
         f, target_st_name, strtab_offset, sh_offset, sh_size, sh_entsize
     )
-    n = bytearray(f)
-    n[st_value:st_value + len(PAYLOAD)] = PAYLOAD
+    return st_value
+
+
+def main():
+    f = bytearray(open('/bin/bash', 'rb').read())
+    main_offset = discover_patch_target(f)
+    write_bytes(f, main_offset + len(ENDBR), PAYLOAD)
     p = open('new', 'wb')
-    p.write(n)
+    p.write(f)
     p.close()
-    print(st_value, st_size)
 
 
 if __name__ == "__main__":
