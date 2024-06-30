@@ -10,8 +10,6 @@ SHT_RELA = 0x04
 
 R_X86_64_JUMP_SLOT = 0x07
 
-ENDBR64 = b'\xf3\x0f\x1e\xfa'
-
 
 def read_qword(f, offset):
     return struct.unpack('<Q', f[offset:offset + 8])[0]
@@ -38,13 +36,11 @@ def to_nullbyte(f, offset):
 
 
 def create_setup(start_offset, dlopen_offset, dlsym_offset):
-    new_dlopen_offset = dlopen_offset - (start_offset + 6) - 7
-    new_dlsym_offset = dlsym_offset - (start_offset + 6 + 5 + 4) - 9
+    new_dlopen_offset = dlopen_offset - (start_offset + 9)
+    new_dlsym_offset = dlsym_offset - (start_offset + 16)
 
     body = b''
-    body += ENDBR64
     body += b'\xF2\xFF\x25' + struct.pack('<I', new_dlopen_offset)
-    body += ENDBR64
     body += b'\xF2\xFF\x25' + struct.pack('<I', new_dlsym_offset)
 
     res = b''

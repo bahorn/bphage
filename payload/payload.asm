@@ -12,8 +12,8 @@ BITS 64
     call _dlopen
 %endmacro
 
-%define _dlopen $_main - 22
-%define _dlsym $_main - 11
+%define _dlopen $_main - 14
+%define _dlsym $_main - 7
 
 %define RTLD_LAZY 1
 %define BIO_C_SET_CONNECT 0x64
