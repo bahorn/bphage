@@ -64,7 +64,7 @@ _main:
     mov r13, rax
 
 ; reading the data twice, as the second read gets the contents.
-    mov r12, 2
+    mov r12d, 2
 two_loop:
     mov rsi, rsp
     mov rdi, r15
@@ -73,15 +73,15 @@ two_loop:
     mov rdx, rdi
     call rax
     
-    dec r12
+    dec r12d
     jne two_loop
 
 ; print it!
-    mov rdx, rax
+    mov dl, al
     mov rsi, rsp
-    mov rdi, 1
-    ; 1 is SYS_write
-    mov rax, rdi
+
+    mov al, 1
+    mov rdi, rax
     syscall
 
 _inf:
