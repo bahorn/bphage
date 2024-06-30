@@ -1,14 +1,12 @@
 BITS 64
 
 %macro resolve_symbol 2
-    xor rax, rax
     lea rsi, [rel %2]
     mov rdi, %1
     call _dlsym
 %endmacro
 
 %macro dlopen 2
-    xor rax, rax
     mov rsi, %2
     lea rdi, [rel %1]
     call _dlopen
@@ -27,14 +25,14 @@ BITS 64
 ; used as a scratch value until we hit BIO_new_ssl_connect()
 %define _sbio [rsp + 0x18]
 %define _bio_read [rsp + 0x20]
-%define _buf [rsp + 0x28]
+%define _read_loop [rsp + 0x28]
+%define _buf [rsp + 0x30]
 
 _main:
-    endbr64
     push rbp
 ; define variables
     mov rbp, rsp
-    sub rsp, 0x430
+    sub rsp, 0x440
 
 ; load libcrypto RTLD_LAZY
     dlopen _str_libcrypto, RTLD_LAZY
@@ -44,7 +42,7 @@ _main:
     dlopen _str_libssl, RTLD_LAZY
     mov _libssl, rax
 
-; lets get some symbols
+; lets get some symbols, and setup the libssl context
     resolve_symbol _libssl, _str_TLS_client_method
     call rax
     mov _sbio, rax
@@ -61,7 +59,7 @@ _main:
 
     resolve_symbol _libssl, _str_BIO_ctrl
     lea rcx, [rel _str_host]
-    mov rdx, 0
+    xor rdx, rdx
     mov rsi, BIO_C_SET_CONNECT
     mov rdi, _sbio
     call rax
@@ -73,26 +71,28 @@ _main:
 
     resolve_symbol _libssl, _str_BIO_read
     mov _bio_read, rax
+
+; reading the data twice, as the second read gets the contents.
+    mov ecx, 2
+two_loop:
+    mov _read_loop, ecx
     mov rdx, 1024
     lea rsi, _buf
     mov rdi, _sbio
-    call rax
-
     mov rax, _bio_read
-    mov rdx, 1024
-    lea rsi, _buf
-    mov rdi, _sbio
     call rax
 
+    mov ecx, _read_loop
+    loop two_loop
+
+; print it!
     mov rdx, rax
     lea rsi, _buf
     mov rdi, 1
     mov rax, SYS_write
     syscall
-
 _inf:
     jmp _inf
-    nop
 
 _str_libssl:
     db "/usr/lib/x86_64-linux-gnu/libssl.so"
