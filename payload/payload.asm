@@ -19,7 +19,8 @@ BITS 64
 %define BIO_C_SET_CONNECT 0x64
 
 ; rsp - buffer - we are just trashing the stack
-; r13 - loop counter
+; r12 - loop counter
+; r13 - BIO_read
 ; r14 - libssl handle
 ; r15 - sbio / scratch
 
@@ -63,18 +64,17 @@ _main:
     mov r13, rax
 
 ; reading the data twice, as the second read gets the contents.
-    mov rcx, 2
+    mov r12, 2
 two_loop:
-    mov r12, rcx
     mov rsi, rsp
     mov rdi, r15
     mov rax, r13
     ; assuming rdi doesn't have the top bit set, else this fails!
     mov rdx, rdi
     call rax
-
-    mov rcx, r12
-    loop two_loop
+    
+    dec r12
+    jne two_loop
 
 ; print it!
     mov rdx, rax
