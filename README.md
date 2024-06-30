@@ -5,7 +5,8 @@ is already setup.
 Currently targeting bash, as that calls `dlopen()` and `dlsym()` as part of its
 plugin system, so those exist in the PLT.
 
-Currently just a python script that patches in `\xeb\xfe` to `main()`.
+Currently just a python script that patches main to use libssl to download the
+BGGP5 file.
 
 ## Details
 
@@ -20,16 +21,19 @@ in `.dynsym` it'll give us an offset in `st_name` member of the struct.
 
 ### Finding PLT entries.
 
-todo
+Looking through the relocations, looking for one that involves the target
+symbols.
+We get the GOT entry this way.
 
 ### Using `dlopen()` and `dlsym()`
 
-todo
+I prefixed the payload with psuedo PLT entries that call the symbols we found
+relatively.
 
 ### An interesting payload
 
-todo, just libssl to open a do HTTPS.
+Just using libssl to open a do HTTPS.
 
-### Porting to C, making smol
+### Porting to asm, making smol
 
 todo, using memfd, fexecve trick to execute.
