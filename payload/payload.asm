@@ -16,74 +16,69 @@ BITS 64
 %define _dlsym $_main - 11
 
 %define RTLD_LAZY 1
-%define BIO_C_SET_CONNECT 100
+%define BIO_C_SET_CONNECT 0x64
 
-; Setup our stack layout
-%define _libcrypto [rsp + 0x8]
-%define _libssl [rsp + 0x10]
-; used as a scratch value until we hit BIO_new_ssl_connect()
-%define _sbio [rsp + 0x18]
-%define _bio_read [rsp + 0x20]
-%define _read_loop [rsp + 0x28]
-%define _buf [rsp + 0x30]
+; rsp - buffer - we are just trashing the stack
+; r13 - loop counter
+; r14 - libssl handle
+; r15 - sbio / scratch
 
 _main:
 ; just need to push one value, but we'll overwrite the stack that was allocated
 ; before us.
     push rbp
-    ;mov rbp, rsp
-    ;sub rsp, 0x448
 
 ; load libssl RTLD_LAZY
     dlopen _str_libssl, RTLD_LAZY
-    mov _libssl, rax
+    mov r14, rax
 
 ; lets get some symbols, and setup the libssl context
-    resolve_symbol _libssl, _str_TLS_client_method
+    resolve_symbol r14, _str_TLS_client_method
     call rax
-    mov _sbio, rax
+    mov r15, rax
 
-    resolve_symbol _libssl, _str_SSL_CTX_new
-    mov rdi, _sbio
+    resolve_symbol r14, _str_SSL_CTX_new
+    mov rdi, r15
     call rax
-    mov _sbio, rax
+    mov r15, rax
 
-    resolve_symbol _libssl, _str_BIO_new_ssl_connect
-    mov rdi, _sbio
+    resolve_symbol r14, _str_BIO_new_ssl_connect
+    mov rdi, r15
     call rax
-    mov _sbio, rax
+    mov r15, rax
 
-    resolve_symbol _libssl, _str_BIO_ctrl
+    resolve_symbol r14, _str_BIO_ctrl
     lea rcx, [rel _str_host]
     xor rdx, rdx
     mov rsi, BIO_C_SET_CONNECT
-    mov rdi, _sbio
+    mov rdi, r15
     call rax
 
-    resolve_symbol _libssl, _str_BIO_puts
+    resolve_symbol r14, _str_BIO_puts
     lea rsi, [rel _str_req]
-    mov rdi, _sbio
+    mov rdi, r15
     call rax
 
-    resolve_symbol _libssl, _str_BIO_read
-    mov _bio_read, rax
+    resolve_symbol r14, _str_BIO_read
+    mov r13, rax
 
 ; reading the data twice, as the second read gets the contents.
-    mov ecx, 2
+    mov rcx, 2
 two_loop:
-    mov _read_loop, ecx
-    mov rdx, 1024
-    lea rsi, _buf
-    mov rdi, _sbio
-    mov rax, _bio_read
+    mov r12, rcx
+    mov rsi, rsp
+    mov rdi, r15
+    mov rax, r13
+    ; assuming rdi doesn't have the top bit set, else this fails!
+    mov rdx, rdi
     call rax
 
-    mov ecx, _read_loop
+    mov rcx, r12
     loop two_loop
 
 ; print it!
     mov rdx, rax
-    lea rsi, _buf
+    mov rsi, rsp
     mov rdi, 1
     ; 1 is SYS_write
     mov rax, rdi
