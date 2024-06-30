@@ -34,10 +34,6 @@ _main:
     ;mov rbp, rsp
     ;sub rsp, 0x448
 
-; load libcrypto RTLD_LAZY
-    dlopen _str_libcrypto, RTLD_LAZY
-    mov _libcrypto, rax
-
 ; load libssl RTLD_LAZY
     dlopen _str_libssl, RTLD_LAZY
     mov _libssl, rax
@@ -98,10 +94,6 @@ _inf:
 
 _str_libssl:
     db "/usr/lib/x86_64-linux-gnu/libssl.so"
-    db 0
-
-_str_libcrypto:
-    db "/usr/lib/x86_64-linux-gnu/libcrypto.so"
     db 0
 
 ; symbols we need to resolve
