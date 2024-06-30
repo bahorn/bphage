@@ -17,7 +17,6 @@ BITS 64
 
 %define RTLD_LAZY 1
 %define BIO_C_SET_CONNECT 100
-%define SYS_write 0x1
 
 ; Setup our stack layout
 %define _libcrypto [rsp + 0x8]
@@ -29,10 +28,11 @@ BITS 64
 %define _buf [rsp + 0x30]
 
 _main:
+; just need to push one value, but we'll overwrite the stack that was allocated
+; before us.
     push rbp
-; define variables
-    mov rbp, rsp
-    sub rsp, 0x440
+    ;mov rbp, rsp
+    ;sub rsp, 0x448
 
 ; load libcrypto RTLD_LAZY
     dlopen _str_libcrypto, RTLD_LAZY
@@ -89,8 +89,10 @@ two_loop:
     mov rdx, rax
     lea rsi, _buf
     mov rdi, 1
-    mov rax, SYS_write
+    ; 1 is SYS_write
+    mov rax, rdi
     syscall
+
 _inf:
     jmp _inf
 
