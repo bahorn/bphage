@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include <openssl/ssl.h>
 
 #define HOSTNAME "binary.golf:443"
@@ -15,25 +16,12 @@ int main()
     SSL_CONF_CTX *cctx;
     SSL *ssl;
     
-    ctx = SSL_CTX_new(TLS_client_method());
+    const void *m = TLS_client_method();
+    ctx = SSL_CTX_new(m);
     sbio = BIO_new_ssl_connect(ctx);
-    BIO_get_ssl(sbio, &ssl);
-    BIO_set_conn_hostname(sbio, HOSTNAME);
-
+    BIO_ctrl(sbio, BIO_C_SET_CONNECT, 0, HOSTNAME);
     BIO_puts(sbio, REQ);
     BIO_read(sbio, tmpbuf, BUFLEN);
     size_t len = BIO_read(sbio, tmpbuf, BUFLEN);
-
-    register int64_t rax __asm__ ("rax") = SYS_write;
-    register int rdi __asm__ ("rdi") = 1;
-    register const void *rsi __asm__ ("rsi") = tmpbuf;
-    register size_t rdx __asm__ ("rdx") = len;
-    __asm__ __volatile__ (
-        "syscall"
-        : "+r" (rax)
-        : "r" (rdi), "r" (rsi), "r" (rdx)
-        : "rcx", "r11", "memory"
-    );
-    while (1) {}
-    __builtin_unreachable();
+    write(1, tmpbuf, len);
 }
