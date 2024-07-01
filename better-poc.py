@@ -89,49 +89,27 @@ def find_main(f):
     return e_entry + main_offset + 31
 
 
-def get_section_header(f):
+def find_rela(f, name):
+    strtab_offset, symtab_offset, jmprel_offset = (None, None, None)
+
+    # finding the section header
     # got from reading `man elf`
     offset_sh = 16 + 2 + 2 + 4 + 8 + 8
     offset_shentsize = offset_sh + 8 + 4 + 2 + 2 + 2
-    offset_shnum = offset_shentsize + 2
 
     e_shoff = read_qword(f, offset_sh)
     e_shentsize = read_word(f, offset_shentsize)
-    e_shnum = read_word(f, offset_shnum)
 
-    return (e_shoff, e_shentsize, e_shnum)
-
-
-def find_section_idx(f, idx, e_shoff, e_shentsize):
-    shent = f[e_shoff + e_shentsize * idx:e_shoff + e_shentsize * (idx + 1)]
-    offset_sh_type = 4
-    sh_type = read_dword(shent, offset_sh_type)
-    # now lets search the symbols
-    offset_sh_offset = 4 + 4 + 8 + 8
-    offset_sh_size = offset_sh_offset + 8
-    offset_sh_entsize = offset_sh_size + 8 + 4 + 4 + 8
-    sh_offset = read_qword(shent, offset_sh_offset)
-    sh_size = read_qword(shent, offset_sh_size)
-    sh_entsize = read_qword(shent, offset_sh_entsize)
-    return (sh_offset, sh_size, sh_entsize, sh_type)
-
-
-def find_dynamic(f):
-    e_shoff, e_shentsize, e_shnum = get_section_header(f)
-    for i in range(0, e_shnum):
-        sh_offset, sh_size, sh_entsize, sh_type = \
-            find_section_idx(f, i, e_shoff, e_shentsize)
-        if sh_type == SHT_DYNAMIC:
-            return (sh_offset, sh_size, sh_entsize)
-
-
-def find_rela(f, name):
-    strtab_offset, symtab_offset, jmprel_offset = (None, None, None)
     # passing over dynamic to get the values we need.
-    dynamic_offset, dynamic_size, dynamic_entry = find_dynamic(f)
-    for i in range(0, dynamic_size // dynamic_entry):
-        start = dynamic_offset + i * dynamic_entry
-        end = dynamic_offset + (i + 1) * dynamic_entry
+    for i in range(0, 64):
+        sh_type = read_dword(f, e_shoff + e_shentsize * i + 4)
+        dynamic_offset = read_qword(f, e_shoff + e_shentsize * i + 24)
+        if sh_type == SHT_DYNAMIC:
+            break
+
+    for i in range(0, 1024):
+        start = dynamic_offset + i * 16
+        end = dynamic_offset + (i + 1) * 16
         dynentry = f[start:end]
         d_tag = read_qword(dynentry, 0)
         d_val = read_qword(dynentry, 8)
@@ -173,8 +151,6 @@ def main():
     # maybe disable relocs if they tamper with our code.
     with open('payload/payload.bin', 'rb') as pd:
         write_bytes(f, main_offset, prefix + pd.read())
-
-    # patch the relocation entries for dlopen and dlsym to point to our code.
 
     p = open('new', 'wb')
     p.write(f)
