@@ -1,6 +1,8 @@
+;
 ;                       ------------------------------
 ;                      [ dynamo.asm - bah - July 2024 ]
 ;                       ------------------------------
+;
 ;
 ; This is a BGGP5 entry that modifies a copy of `bash` in memory to inject code
 ; that downloads and displays the BGGP5 file.
@@ -77,7 +79,15 @@ BITS 64
 
 ; useful offsets for discovering relocations
 %define e_shoff_offset      40
-%define e_shentsize         58
+%define e_shentsize_offset  58
+%define sh_type_offset      4
+%define dynamic_offset      24
+
+
+; just the first 4 bytes of symbol names we are looking for
+; nothing should clash with these.
+%define DLOP                0x706f6c64
+%define DLSY                0x79736c64
 
 
 ; Macros, these two are used for the patch
@@ -131,10 +141,128 @@ _discover_main:
     add r13, rax
     add r13, main_rip_offset
 
+
+;;; Finding the relocations
+
 _find_rela:
-; using known offsets.
-    mov r14, 0x14c9f8
-    mov r15, 0x14cc90
+
+; we use these to compute offsets
+    mov rsi, [rsp + e_shoff_offset]
+    xor rdi, rdi
+    mov di, [rsp + e_shentsize_offset]
+
+
+;; Looking for .dynamic
+
+; setting up the loop
+    xor rcx, rcx
+    mov cx, 64
+    mov rax, rsp
+    add rax, rsi
+_find_dynamic_loop:
+    mov ebx, [rax + sh_type_offset]
+    cmp ebx, SHT_DYNAMIC
+    je  _got_sht_dynamic
+
+    add rax, rdi
+    loop _find_dynamic_loop
+
+; we found the offset of .dynamic. Assuming we always find it.
+_got_sht_dynamic:
+    mov rbx, [rax + dynamic_offset]
+
+
+;; Finding offsets by reading .dynamic
+;
+; Register usage:
+; rbx - pointer into relocation table
+; rsi - d_tag
+; rdi - d_val
+; rcx - loop counter
+; rsp - buffer
+
+; r8  - strtab_offset
+; r9  - symtab_offset
+; r10 - jmprel_offset
+
+; setup this loop
+    add rbx, rsp
+    mov ecx, 1024
+
+_read_sht_dynamic:
+; d_tag
+    mov rsi, [rbx]
+; d_val
+    mov rdi, [rbx + 8]
+
+
+; Implementing a case statement here
+    cmp rsi, DT_NULL
+    je  _read_sht_dynamic_done
+
+    cmp rsi, DT_STRTAB
+    jne _case_symtab_test
+    mov r8, rdi
+
+_case_symtab_test:
+    cmp rsi, DT_SYMTAB
+    jne _case_jmprel_test
+    mov r9, rdi
+
+_case_jmprel_test:
+    cmp rsi, DT_JMPREL
+    jne _read_sht_dynamic_tail
+    mov r10, rdi
+
+    add r10, rsp
+
+_read_sht_dynamic_tail:
+    add rbx, 16
+    loop _read_sht_dynamic
+
+_read_sht_dynamic_done:
+
+; now lets finally resolve dlopen and dlsym
+    xor r14, r14
+    xor r15, r15
+_process_relocs:
+    xor rdi, rdi
+    ; rela_offset
+    mov rsi, [r10]
+    ; rela idx
+    mov edi, [r10 + 12]
+
+    ; st_name
+    xor rax, rax
+    imul rdi, 24
+    add rdi, rsp
+    add rdi, r9
+    mov eax, [rdi]
+
+    ; relname offset
+    mov ebx, eax
+    add rbx, r8
+    add rbx, rsp
+
+    ; now we need to strcmp against one of target values.
+    ; we only need to read 4 bytes to check.
+    mov ebx, [rbx]
+    cmp ebx, DLOP
+    jne _case_dlsy
+    mov r14, rsi
+
+_case_dlsy:
+    cmp ebx, DLSY
+    jne _process_relocs_loop_tail
+    mov r15, rsi
+
+_process_relocs_loop_tail:
+    add r10, 24
+    cmp r15, 0
+    je  _process_relocs
+
+    cmp r14, 0
+    je  _process_relocs
 
 _apply_patches:
 ; memcpy the _patch in
