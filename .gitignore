@@ -2,3 +2,7 @@
 __pycache__
 new
 payload/payload.bin
+src/*.o
+dynamo.elf
+sample/test.c
+sample/a.out
