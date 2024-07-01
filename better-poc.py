@@ -13,10 +13,11 @@ argument to __libc_start_main.
 * .dynstr
 * the JMPREL we care about.
 
-so find those, then process jmprel checking each symbol against those.
+When we know these, we can iterate through the relocations in JMPREL, accessing
+the idx of the symbol each one refers to, and checking the name against our
+target function.
 
 we can ignore sizes as we assume everything will be found!
-
 """
 import os
 import struct
@@ -93,12 +94,8 @@ def find_rela(f, name):
     strtab_offset, symtab_offset, jmprel_offset = (None, None, None)
 
     # finding the section header
-    # got from reading `man elf`
-    offset_sh = 16 + 2 + 2 + 4 + 8 + 8
-    offset_shentsize = offset_sh + 8 + 4 + 2 + 2 + 2
-
-    e_shoff = read_qword(f, offset_sh)
-    e_shentsize = read_word(f, offset_shentsize)
+    e_shoff = read_qword(f, 40)
+    e_shentsize = read_word(f, 58)
 
     # passing over dynamic to get the values we need.
     for i in range(0, 64):
@@ -108,11 +105,8 @@ def find_rela(f, name):
             break
 
     for i in range(0, 1024):
-        start = dynamic_offset + i * 16
-        end = dynamic_offset + (i + 1) * 16
-        dynentry = f[start:end]
-        d_tag = read_qword(dynentry, 0)
-        d_val = read_qword(dynentry, 8)
+        d_tag = read_qword(f, dynamic_offset + i * 16)
+        d_val = read_qword(f, dynamic_offset + i * 16 + 8)
 
         match d_tag:
             case Dynamic.DT_NULL.value:
@@ -126,9 +120,8 @@ def find_rela(f, name):
 
     # passing over the relocations to try and find the name.
     for i in range(0, 1024):
-        rela = f[jmprel_offset + i * 24:jmprel_offset + (i + 1) * 24]
-        rela_offset = read_qword(rela, 0)
-        rela_idx = read_dword(rela, 12)
+        rela_offset = read_qword(f, jmprel_offset + i * 24)
+        rela_idx = read_dword(f, jmprel_offset + i * 24 + 12)
         # lookup symbol
         st_name = read_dword(f, symtab_offset + rela_idx * 24)
         relname = to_nullbyte(f, strtab_offset + st_name)
