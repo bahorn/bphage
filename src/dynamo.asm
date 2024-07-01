@@ -258,8 +258,7 @@ read_twice:
     mov rsi, rsp
     mov rdi, r15
     mov rax, r13
-; assuming rdi doesn't have the top bit set, else this fails!
-    mov rdx, rdi
+    mov rdx, 1024
     call rax
     
     dec r12d
