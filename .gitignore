@@ -1,7 +1,7 @@
 *.pyc
 __pycache__
 new
-payload/payload.bin
+pocs/payload/payload.bin
 src/*.o
 dynamo.elf
 sample/test.c
