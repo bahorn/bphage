@@ -1,4 +1,6 @@
+;                       ------------------------------
 ;                      [ dynamo.asm - bah - July 2024 ]
+;                       ------------------------------
 ;
 ; This is a BGGP5 entry that modifies a copy of `bash` in memory to inject code
 ; that downloads and displays the BGGP5 file.
@@ -99,7 +101,6 @@ BITS 64
 ; r15 - offset to dlsym
 
 _start:
-    push rbp
     sub rsp, STACKSPACE
 
 ; open the binary, dump into the stack
@@ -123,6 +124,7 @@ _discover_main:
     mov r13, rax
     add rax, rsp
     add rax, main_offset
+
 ; so rax is now a signed 32bit int.
     mov rax, [rax]
     cdqe
@@ -141,23 +143,20 @@ _apply_patches:
     mov rdi, rsp
     add rdi, r13
     rep movsb
-; set the dlopen and dlsym jumps
 
 ; start off with getting the offset to main in our buffer
     mov rdx, r13
     add rdx, rsp
 
-    mov rax, r13
-    add rax, 9
-    sub r14, rax
+; set the dlopen and dlsym jumps
+; our last usage of r13, so fine to trash it.
+    add r13, 9
+    sub r14, r13
     mov [rdx + _dlopen_target - _patch_start], r14d
 
-    mov rax, r13
-    add rax, 16
-    sub r15, rax
+    add r13, (16 - 9)
+    sub r15, r13
     mov [rdx + _dlsym_target - _patch_start], r15d
-
-    ; jmp _inf
 
 _setup_memfd:
     xor rsi, rsi
@@ -182,8 +181,8 @@ _execve_memfd:
     mov rax, SYS_execveat
     syscall
 
-; end of the code
-    jmp _inf
+; end of the line
+
 
 ; move into ELF header
 _str_bash:
