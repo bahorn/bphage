@@ -174,10 +174,9 @@ _discover_main:
     add rax, main_offset
 
 ; so rax is now a signed 32bit int.
-    mov rax, [rax]
-    cdqe
+    movsxd rax, [rax]
+    add rax, main_rip_offset
     add r13, rax
-    add r13, main_rip_offset
 
 
 ;; Looking for .dynamic.
@@ -244,8 +243,12 @@ _read_sht_dynamic_tail:
 
 
 ; now lets finally resolve dlopen and dlsym
-    xor r14, r14
-    xor r15, r15
+
+; we shouldn't need to zero out r14 and r15, as they aren't used up to this
+; point, so they should be zero.
+; xor r14, r14
+; xor r15, r15
+
 _process_relocs:
     ; rela_offset
     mov rsi, [r10]
