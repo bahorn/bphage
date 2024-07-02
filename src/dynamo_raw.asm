@@ -168,7 +168,6 @@ _open_bin:
     mov r12, rax
 
 _discover_main:
-    xor rdx, rdx
     mov rax, [rsp + e_entry_offset]
     mov r13, rax
     add rax, rsp
