@@ -208,28 +208,20 @@ _find_dynamic_loop:
 ; rbx - pointer into relocation table
 ; rsi - d_tag
 ; rdi - d_val
-; rcx - loop counter
 ; rsp - buffer
-
 ; r8  - strtab_offset
 ; r9  - symtab_offset
 ; r10 - jmprel_offset
 
 ; setup this loop
     add rbx, rsp
-    mov ecx, 1024
-
 _read_sht_dynamic:
 ; d_tag
     mov rsi, [rbx]
 ; d_val
     mov rdi, [rbx + 8]
 
-
 ; Implementing a case statement here
-    cmp rsi, DT_NULL
-    je  _read_sht_dynamic_done
-
     cmp rsi, DT_STRTAB
     jne _case_symtab_test
     mov r8, rdi
@@ -248,9 +240,9 @@ _case_jmprel_test:
 
 _read_sht_dynamic_tail:
     add rbx, 16
-    loop _read_sht_dynamic
+    cmp rsi, DT_NULL
+    jne  _read_sht_dynamic
 
-_read_sht_dynamic_done:
 
 ; now lets finally resolve dlopen and dlsym
     xor r14, r14
