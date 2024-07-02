@@ -6,3 +6,8 @@ build:
 build_raw:
 	nasm -f bin -o dynamo-raw.elf src/dynamo_raw.asm
 	chmod +x ./dynamo-raw.elf
+
+
+build_docker: build_raw
+	docker build -t bahorn/dynamo-test .
+	docker run -ti bahorn/dynamo-test bash

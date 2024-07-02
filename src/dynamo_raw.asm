@@ -419,7 +419,7 @@ _inf:
 
 
 _str_libssl:
-    db "libssl.so"
+    db "libssl.so.3"
     db 0
 
 ; symbols we need to resolve
