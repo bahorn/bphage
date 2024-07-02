@@ -427,7 +427,7 @@ _inf:
 
 
 _str_libssl:
-    db "/usr/lib/x86_64-linux-gnu/libssl.so"
+    db "libssl.so"
     db 0
 
 ; symbols we need to resolve
