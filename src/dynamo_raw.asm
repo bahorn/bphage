@@ -188,7 +188,6 @@ _find_dynamic:
 
 ; we use these to compute offsets, only for this loop.
     mov rsi, [rsp + e_shoff_offset]
-    xor rdi, rdi
     mov di, [rsp + e_shentsize_offset]
 
     mov rax, rsp
@@ -248,14 +247,12 @@ _read_sht_dynamic_tail:
     xor r14, r14
     xor r15, r15
 _process_relocs:
-    xor rdi, rdi
     ; rela_offset
     mov rsi, [r10]
     ; rela idx
     mov edi, [r10 + 12]
 
     ; st_name
-    xor rax, rax
     imul rdi, 24
     add rdi, rsp
     add rdi, r9
