@@ -2,7 +2,8 @@
 __pycache__
 new
 pocs/payload/payload.bin
+pocs/minelf/
 src/*.o
-dynamo.elf
+dynamo*.elf
 sample/test.c
 sample/a.out
