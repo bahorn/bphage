@@ -181,33 +181,25 @@ _discover_main:
     add r13, main_rip_offset
 
 
-;;; Finding the relocations
+;; Looking for .dynamic.
+; Assumptions:
+; * We will always find it.
+; * It is not the first section
+_find_dynamic:
 
-_find_rela:
-
-; we use these to compute offsets
+; we use these to compute offsets, only for this loop.
     mov rsi, [rsp + e_shoff_offset]
     xor rdi, rdi
     mov di, [rsp + e_shentsize_offset]
 
-
-;; Looking for .dynamic
-
-; setting up the loop
-    xor rcx, rcx
-    mov cx, 64
     mov rax, rsp
     add rax, rsi
 _find_dynamic_loop:
+    add rax, rdi
     mov ebx, [rax + sh_type_offset]
     cmp ebx, SHT_DYNAMIC
-    je  _got_sht_dynamic
+    jne  _find_dynamic_loop
 
-    add rax, rdi
-    loop _find_dynamic_loop
-
-; we found the offset of .dynamic. Assuming we always find it.
-_got_sht_dynamic:
     mov rbx, [rax + dynamic_offset]
 
 
