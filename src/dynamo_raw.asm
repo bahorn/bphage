@@ -3,7 +3,6 @@
 ;                      [ dynamo.asm - bah - July 2024 ]
 ;                       ------------------------------
 ;
-;
 ; This is a BGGP5 entry that modifies a copy of `bash` in memory to inject code
 ; that downloads and displays the BGGP5 file.
 ;
@@ -54,7 +53,6 @@ BITS 64
 %define DT_JMPREL           23
 
 ; syscalls we need
-%define SYS_read            0
 %define SYS_write           1
 %define SYS_open            2
 %define SYS_memfd_create    319
@@ -112,7 +110,6 @@ _fake_start:
     jmp _start
 _str_bash:
     db "/bin/bash"
-_str_null:
     db 0
     dw 2                       ; e_type
     dw 62                      ; e_machine
@@ -137,7 +134,6 @@ phdr:
 ; register usage
 ; rsp - points the buffer we are using to start the copy of bash.
 ; r12 - length of the bash binary
-; r13 - offset to main
 ; r14 - offset to dlopen
 ; r15 - offset to dlsym
 
@@ -156,19 +152,9 @@ _open_bin:
     mov rdx, STACKSPACE
     mov rsi, rsp
     mov rdi, rax
-    lea eax, [ebx + SYS_read]
+    xor eax, eax ; SYS_read = 0
     syscall
     mov r12, rax
-
-_discover_main:
-    mov rax, [rsp + e_entry_offset]
-    mov r13, rax
-    add rax, rsp
-    add rax, main_offset
-
-    movsxd rax, [rax]
-    add rax, main_rip_offset
-    add r13, rax
 
 ;; Looking for .dynamic.
 ; Assumptions:
@@ -277,31 +263,39 @@ _process_relocs_loop_tail:
     cmp r14, 0
     je  _process_relocs
 
+_discover_main:
+    mov rax, [rsp + e_entry_offset]
+    mov rbx, rax
+    add rax, rsp
+    add rax, main_offset
+
+    movsxd rax, [rax]
+    add rax, main_rip_offset
+    add rbx, rax
+
+; start off with getting the offset to main in our buffer
+    mov rdx, rbx
+    add rdx, rsp
 _apply_patches:
 ; memcpy the _patch in
     mov ecx, _patch_end - _patch_start
     lea rsi, [rel _patch_start]
-    mov rdi, rsp
-    add rdi, r13
+    mov rdi, rdx
     rep movsb
 
-; start off with getting the offset to main in our buffer
-    mov rdx, r13
-    add rdx, rsp
-
 ; set the dlopen and dlsym jumps
-; our last usage of r13, so fine to trash it.
-    add r13, _dlopen_end - _patch_start
-    sub r14, r13
+; our last usage of rbx, so fine to trash it.
+    add rbx, _dlopen_end - _patch_start
+    sub r14, rbx
+    add rbx, (_dlsym_end - _dlsym)
+    sub r15, rbx
+    
     mov [rdx + _dlopen_target - _patch_start], r14d
-
-    add r13, (_dlsym_end - _dlsym)
-    sub r15, r13
     mov [rdx + _dlsym_target - _patch_start], r15d
 
 _setup_memfd:
     xor esi, esi
-    lea rdi, [rel _str_BIO_ctrl]
+    lea rdi, [rel _str_memfd_name]
     mov eax, SYS_memfd_create
     syscall
 
@@ -310,14 +304,14 @@ _write_memfd:
     mov r12, rax
     mov rsi, rsp
     mov rdi, rax
-    mov eax, SYS_write
+    mov al, SYS_write
     syscall
 
 _execve_memfd:
     mov r8, AT_EMPTY_PATH
     xor r10, r10
     xor edx, edx
-    lea rsi, [rel _str_null]
+    lea rsi, [rel _str_memfd_name]
     mov rdi, r12
     mov eax, SYS_execveat
     syscall
@@ -337,7 +331,8 @@ _patch_start:
 _dlopen:
     db 0xff, 0x25
 _dlopen_target:
-    dd 0x41424344
+_str_memfd_name:
+    dd 0x00000000
 _dlopen_end:
 
 _dlsym:
@@ -392,8 +387,8 @@ _patch_code:
     mov r13, rax
 
 ; reading the data twice, as the second read gets the contents.
-; we need to use r12d here, as cx gets trashed by the call.
-    mov r12d, 2
+; we need to use ebx here, as cx gets trashed by the call.
+    mov ebx, 2
 read_twice:
     mov rsi, rsp
     mov rdi, r15
@@ -401,7 +396,7 @@ read_twice:
     mov dx, 1024
     call rax
     
-    dec r12d
+    dec ebx
     jne read_twice
 
 ; print it!
