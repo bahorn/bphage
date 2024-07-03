@@ -95,6 +95,11 @@ BITS 64
     call _dlsym
 %endmacro
 
+%macro regcopy 2
+    push %2
+    pop %1
+%endmacro
+
 ; THIS IS THE HEADER FROM
 ; https://www.muppetlabs.com/~breadbox/software/tiny/tiny-x64.asm.txt
 ; with minor changes to store a string an jump to my _start.
@@ -182,7 +187,7 @@ _find_dynamic_loop:
 ; rsi - d_tag
 ; rdi - d_val
 ; rsp - buffer
-; rbp  - strtab_offset
+; rbp - strtab_offset
 ; rax - symtab_offset
 ; rcx - jmprel_offset
 
@@ -221,6 +226,13 @@ _read_sht_dynamic_tail:
 ; xor r14, r14
 ; xor r15, r15
 
+; input regs:
+; rbp - strtab_offset
+; rax - symtab_offset
+; rcx - jmprel_offset
+
+; rsi, rsp, rdi, rbx
+
 _process_relocs:
     ; rela_offset
     mov esi, [rsp + rcx]
@@ -258,7 +270,7 @@ _process_relocs_loop_tail:
 
 _discover_main:
     mov rax, [rsp + e_entry_offset]
-    mov rbx, rax
+    regcopy rbx, rax
     add rax, main_offset
 
     movsxd rax, [rsp + rax]
@@ -266,13 +278,13 @@ _discover_main:
     add rbx, rax
 
 ; start off with getting the offset to main in our buffer
-    mov rdx, rbx
+    regcopy rdx, rbx
     add rdx, rsp
 _apply_patches:
 ; memcpy the _patch in
     mov ecx, _patch_end - _patch_start
     lea rsi, [rel _patch_start]
-    mov rdi, rdx
+    regcopy rdi, rdx
     rep movsb
 
 ; set the dlopen and dlsym jumps
@@ -290,21 +302,21 @@ _setup_memfd:
     lea rdi, [rel _str_memfd_name]
     mov eax, SYS_memfd_create
     syscall
-
+    
 _write_memfd:
     mov rdx, r12
     mov r12, rax
-    mov rsi, rsp
-    mov rdi, rax
+    regcopy rsi, rsp
+    regcopy rdi, rax
     mov al, SYS_write
     syscall
 
 _execve_memfd:
     mov r8d, AT_EMPTY_PATH
-    xor r10, r10
+    ; r10 was never used and is 0
     xor edx, edx
     lea rsi, [rel _str_memfd_name]
-    mov rdi, r12
+    ; rdi is the same as write()
     mov eax, SYS_execveat
     syscall
 
@@ -316,8 +328,9 @@ _execve_memfd:
 ; rsp - buffer - we are just trashing the stack
 ; r12 - loop counter
 ; r13 - BIO_read
-; r14 - libssl handle
-; r15 - sbio / scratch
+; rbx - libssl handle
+; rbp - scratch
+; r15 - sbio
 
 ; we want to remove this, need to adjust our offset calculations earlier.
 _patch_start:
@@ -350,54 +363,53 @@ _patch_code:
 
     lea rdi, [rel _str_libssl]
     call _dlopen
-    mov r14, rax
+    regcopy rbx, rax
 
 ; lets get some symbols, and setup the libssl context
-    resolve_symbol r14, _str_TLS_client_method
+    resolve_symbol rbx, _str_TLS_client_method
+    call rax
+    regcopy rbp, rax
+
+    resolve_symbol rbx, _str_SSL_CTX_new
+    regcopy rdi, rbp
+    call rax
+    regcopy rbp, rax
+
+    resolve_symbol rbx, _str_BIO_new_ssl_connect
+    regcopy rdi, rbp
     call rax
     mov r15, rax
 
-    resolve_symbol r14, _str_SSL_CTX_new
-    mov rdi, r15
-    call rax
-    mov r15, rax
-
-    resolve_symbol r14, _str_BIO_new_ssl_connect
-    mov rdi, r15
-    call rax
-    mov r15, rax
-
-    resolve_symbol r14, _str_BIO_ctrl
+    resolve_symbol rbx, _str_BIO_ctrl
     lea rcx, [rel _str_host]
-    xor rdx, rdx
-    mov rsi, BIO_C_SET_CONNECT
+    xor edx, edx
+    mov esi, BIO_C_SET_CONNECT
     mov rdi, r15
     call rax
 
-    resolve_symbol r14, _str_BIO_puts
+    resolve_symbol rbx, _str_BIO_puts
     lea rsi, [rel _str_req]
     mov rdi, r15
     call rax
 
-    resolve_symbol r14, _str_BIO_read
-    mov r13, rax
+    resolve_symbol rbx, _str_BIO_read
+    mov rbp, rax
 
 ; reading the data twice, as the second read gets the contents.
 ; we need to use ebx here, as cx gets trashed by the call.
     mov ebx, 2
 read_twice:
-    mov rsi, rsp
+    regcopy rsi, rsp
     mov rdi, r15
-    mov rax, r13
     mov dx, 1024
-    call rax
+    call rbp
     
     dec ebx
     jne read_twice
 
 ; print it!
     mov dl, al
-    mov rsi, rsp
+    regcopy rsi, rsp
 
     mov al, SYS_write
     mov edi, eax
