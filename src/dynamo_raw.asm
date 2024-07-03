@@ -182,9 +182,9 @@ _find_dynamic_loop:
 ; rsi - d_tag
 ; rdi - d_val
 ; rsp - buffer
-; r8  - strtab_offset
-; r9  - symtab_offset
-; r10 - jmprel_offset
+; rbp  - strtab_offset
+; rax - symtab_offset
+; rcx - jmprel_offset
 
 ; setup this loop
 _read_sht_dynamic:
@@ -196,17 +196,17 @@ _read_sht_dynamic:
 ; Implementing a case statement here
     cmp esi, DT_STRTAB
     jne _case_symtab_test
-    mov r8, rdi
+    mov ebp, edi
 
 _case_symtab_test:
     cmp esi, DT_SYMTAB
     jne _case_jmprel_test
-    mov r9, rdi
+    mov eax, edi
 
 _case_jmprel_test:
     cmp esi, DT_JMPREL
     jne _read_sht_dynamic_tail
-    mov r10, rdi
+    mov ecx, edi
 
 _read_sht_dynamic_tail:
     add rbx, 16
@@ -223,18 +223,18 @@ _read_sht_dynamic_tail:
 
 _process_relocs:
     ; rela_offset
-    mov esi, [rsp + r10]
+    mov esi, [rsp + rcx]
     ; rela idx
-    mov edi, [rsp + r10 + 12]
-    add r10, 24
+    mov edi, [rsp + rcx + 12]
+    add ecx, 24
 
     ; st_name
     imul edi, 24
-    add edi, r9d
+    add edi, eax
     mov ebx, [rdi + rsp]
     
     ; relname offset
-    add rbx, r8
+    add ebx, ebp
 
     ; now we need to strcmp against one of target values.
     ; we only need to read 4 bytes to check.
