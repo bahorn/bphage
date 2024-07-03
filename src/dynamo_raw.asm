@@ -77,7 +77,7 @@ BITS 64
 
 ; useful offsets for discovering relocations
 %define e_shoff_offset      40
-%define e_shentsize_offset  58
+%define e_shentsize         64
 %define sh_type_offset      4
 %define dynamic_offset      24
 
@@ -164,16 +164,13 @@ _open_bin:
 _find_dynamic:
 
 ; we use these to compute offsets, only for this loop.
-    mov rsi, [rsp + e_shoff_offset]
-    mov di, [rsp + e_shentsize_offset]
-
     mov rax, rsp
-    add rax, rsi
+    add rax, [rsp + e_shoff_offset]
 _find_dynamic_loop:
-    add rax, rdi
+    add rax, e_shentsize
     mov ebx, [rax + sh_type_offset]
     cmp ebx, SHT_DYNAMIC
-    jne  _find_dynamic_loop
+    jne _find_dynamic_loop
 
     mov rbx, [rax + dynamic_offset]
 
@@ -190,12 +187,11 @@ _find_dynamic_loop:
 ; r10 - jmprel_offset
 
 ; setup this loop
-    add rbx, rsp
 _read_sht_dynamic:
 ; d_tag, only care about the lower bits
-    mov esi, [rbx]
+    mov esi, [rsp + rbx]
 ; d_val
-    mov rdi, [rbx + 8]
+    mov rdi, [rsp + rbx + 8]
 
 ; Implementing a case statement here
     cmp esi, DT_STRTAB
@@ -212,8 +208,6 @@ _case_jmprel_test:
     jne _read_sht_dynamic_tail
     mov r10, rdi
 
-    add r10, rsp
-
 _read_sht_dynamic_tail:
     add rbx, 16
     cmp rsi, DT_NULL
@@ -229,25 +223,22 @@ _read_sht_dynamic_tail:
 
 _process_relocs:
     ; rela_offset
-    mov esi, [r10]
+    mov esi, [rsp + r10]
     ; rela idx
-    mov edi, [r10 + 12]
+    mov edi, [rsp + r10 + 12]
     add r10, 24
 
     ; st_name
     imul edi, 24
-    add rdi, rsp
-    add rdi, r9
-    mov eax, [rdi]
-
+    add edi, r9d
+    mov ebx, [rdi + rsp]
+    
     ; relname offset
-    mov ebx, eax
     add rbx, r8
-    add rbx, rsp
 
     ; now we need to strcmp against one of target values.
     ; we only need to read 4 bytes to check.
-    mov ebx, [rbx]
+    mov ebx, [rsp + rbx]
     cmp ebx, DLOP
     jne _case_dlsy
     mov r14d, esi
