@@ -232,8 +232,8 @@ _read_sht_dynamic_tail:
 ; rax - symtab_offset
 ; rcx - jmprel_offset
 
-; rsi, rsp, rdi, rbx
-
+; rsi, rsp, rdi, rbx, rbp, rax, rcx
+; r14, r15
 _process_relocs:
     ; rela_offset
     mov esi, [rsp + rcx]
@@ -347,6 +347,7 @@ _finish_exec:
     db 0x0f, 0x05 ; syscall
 _dlsym_end:
 
+
 _patch_code:
 ; just need to push one value to keep the stack aligned for the functions we
 ; will be calling but we'll overwrite the stack that was allocated before us.
@@ -394,16 +395,17 @@ _patch_code:
 
 ; reading the data twice, as the second read gets the contents.
 ; we need to use ebx here, as cx gets trashed by the call.
-    mov ebx, 2
-read_twice:
     regcopy rsi, rsp
     mov rdi, r15
-    mov dx, 1024
+    ; setting to the lower bits of bp, which will read enough hopefully.
+    mov dx, bp
+    call rbp
+
+    regcopy rsi, rsp
+    ; rax is the len of the headers, which is big enough to hold the contents.
+    regcopy rdx, rax
     call rbp
     
-    dec ebx
-    jne read_twice
-
 ; print it!
     xchg edx, eax
     regcopy rsi, rsp
