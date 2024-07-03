@@ -154,8 +154,9 @@ _start:
 
 ; open the binary, dump into the stack
 _open_bin:
-    xor rdx, rdx
-    xor rsi, rsi
+    ; we don't need to clear out rdx or rsi as they are 0 initially.
+    ; xor rdx, rdx
+    ; xor rsi, rsi
     lea rdi, [rel _str_bash]
     lea eax, [ecx + SYS_open]
     syscall
@@ -394,12 +395,13 @@ _patch_code:
     mov r13, rax
 
 ; reading the data twice, as the second read gets the contents.
+; we need to use r12d here, as cx gets trashed by the call.
     mov r12d, 2
 read_twice:
     mov rsi, rsp
     mov rdi, r15
     mov rax, r13
-    mov rdx, 1024
+    mov dx, 1024
     call rax
     
     dec r12d
