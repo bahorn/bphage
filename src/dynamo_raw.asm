@@ -148,10 +148,11 @@ _open_bin:
     lea rdi, [rel _str_bash]
     lea eax, [ecx + SYS_open]
     syscall
+; eax should be 3 here.
 
-    mov rdx, STACKSPACE
+    mov edx, STACKSPACE
     mov rsi, rsp
-    mov rdi, rax
+    mov edi, eax
     xor eax, eax ; SYS_read = 0
     syscall
     mov r12, rax
@@ -234,7 +235,7 @@ _process_relocs:
     add r10, 24
 
     ; st_name
-    imul rdi, 24
+    imul edi, 24
     add rdi, rsp
     add rdi, r9
     mov eax, [rdi]
