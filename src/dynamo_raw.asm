@@ -306,7 +306,6 @@ _setup_memfd:
     
 _write_memfd:
     mov rdx, r12
-    mov r12, rax
     regcopy rsi, rsp
     regcopy rdi, rax
     mov al, SYS_write
@@ -452,7 +451,7 @@ _str_host:
 _str_req:
     db "GET /5/5 HTTP/1.1"
     db 0x0a
-    db "Host: "
+    db "Host:"
     db "binary.golf"
     db 0x0a
     db 0x0a
