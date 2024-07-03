@@ -115,6 +115,7 @@ _fake_start:
     jmp _start
 _str_bash:
     db "/bin/bash"
+_str_memfd_name:
     db 0
     dw 2                       ; e_type
     dw 62                      ; e_machine
@@ -157,7 +158,7 @@ _open_bin:
 
     mov edx, STACKSPACE
     regcopy rsi, rsp
-    mov edi, eax
+    xchg edi, eax
     xor eax, eax ; SYS_read = 0
     syscall
     mov r12, rax
@@ -206,12 +207,12 @@ _read_sht_dynamic:
 _case_symtab_test:
     cmp esi, DT_SYMTAB
     jne _case_jmprel_test
-    mov eax, edi
+    xchg eax, edi
 
 _case_jmprel_test:
     cmp esi, DT_JMPREL
     jne _read_sht_dynamic_tail
-    mov ecx, edi
+    xchg ecx, edi
 
 _read_sht_dynamic_tail:
     add ebx, 16
@@ -324,10 +325,8 @@ _execve_memfd:
 ; we will now be in the patch after the execveat(), so lets move onto that!
 
 ; rsp - buffer - we are just trashing the stack
-; r12 - loop counter
-; r13 - BIO_read
-; rbx - libssl handle
-; rbp - scratch
+; rbx - libssl handle, loop counter
+; rbp - BIO_read, scratch
 ; r15 - sbio
 
 ; we want to remove this, need to adjust our offset calculations earlier.
@@ -338,9 +337,7 @@ _patch_start:
 _dlopen:
     db 0xff, 0x25
 _dlopen_target:
-_str_memfd_name:
-    db 0
-    db 'abc'
+    db "abcd"
 _dlopen_end:
 
 _dlsym:
@@ -409,7 +406,7 @@ read_twice:
     jne read_twice
 
 ; print it!
-    mov dl, al
+    xchg edx, eax
     regcopy rsi, rsp
 
     mov al, SYS_write
@@ -455,9 +452,11 @@ _str_host:
 _str_req:
     db "GET /5/5 HTTP/1.1"
     db 0x0a
-    db "Host: binary.golf"
+    db "Host: "
+    db "binary.golf"
     db 0x0a
     db 0x0a
+; i got away without this, but we are probably spraying code
     db 0
 
 _patch_end:
