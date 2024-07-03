@@ -3,6 +3,8 @@
 ;                      [ dynamo.asm - bah - July 2024 ]
 ;                       ------------------------------
 ;
+;              "could go to hell... but we'll probably be fine!"
+;
 ; This is a BGGP5 entry that modifies a copy of `bash` in memory to inject code
 ; that downloads and displays the BGGP5 file.
 ;
@@ -133,7 +135,8 @@ phdr:
     dw 0                       ; e_shnum
     dw 0                       ; e_shstrndx
     dq 0x00400001                              ; p_memsz
-    dq 0                                       ; p_align
+; we can apparenly just skip this?
+;   dq 0                                       ; p_align
 
 ; END HEADER
 
@@ -326,7 +329,6 @@ _execve_memfd:
 ; rsp - buffer - we are just trashing the stack
 ; rbx - libssl handle, loop counter
 ; rbp - BIO_read, scratch
-; r15 - sbio
 
 ; we want to remove this, need to adjust our offset calculations earlier.
 _patch_start:
@@ -376,29 +378,33 @@ _patch_code:
     resolve_symbol rbx, _str_BIO_new_ssl_connect
     regcopy rdi, rbp
     call rax
-    mov r15, rax
+    regcopy rbp, rax
 
     resolve_symbol rbx, _str_BIO_ctrl
     lea rcx, [rel _str_host]
     xor edx, edx
     mov esi, BIO_C_SET_CONNECT
-    mov rdi, r15
+    regcopy rdi, rbp
     call rax
 
     resolve_symbol rbx, _str_BIO_puts
     lea rsi, [rel _str_req]
-    mov rdi, r15
+    regcopy rdi, rbp
     call rax
+
+    push rsp
+    push rbp
 
     resolve_symbol rbx, _str_BIO_read
     regcopy rbp, rax
 
 ; reading the data twice, as the second read gets the contents.
 ; we need to use ebx here, as cx gets trashed by the call.
-    regcopy rsi, rsp
-    mov rdi, r15
+    pop rdi
+    pop rsi
+    ;regcopy rsi, rsp
     ; setting to the lower bits of bp, which will read enough hopefully.
-    mov dx, bp
+    mov dx, sp
     call rbp
 
     regcopy rsi, rsp
@@ -446,10 +452,6 @@ _str_SSL_CTX_new:
     db "SSL_CTX_new"
     db 0
 
-_str_host:
-    db "binary.golf:443"
-    db 0
-
 _str_req:
     db "GET /5/5 HTTP/1.1"
     db 0x0a
@@ -457,7 +459,10 @@ _str_req:
     db "binary.golf"
     db 0x0a
     db 0x0a
-; i got away without this, but we are probably spraying code
+; sending this as part of the request to save bytes lol
+; I would place it on the host line, but libssl doesn't like the newlines.
+_str_host:
+    db "binary.golf:443"
     db 0
 
 _patch_end:
