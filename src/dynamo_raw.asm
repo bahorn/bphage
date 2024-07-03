@@ -288,7 +288,7 @@ _process_relocs_loop_tail:
 
 _apply_patches:
 ; memcpy the _patch in
-    mov rcx, _patch_end - _patch_start
+    mov ecx, _patch_end - _patch_start
     lea rsi, [rel _patch_start]
     mov rdi, rsp
     add rdi, r13
@@ -300,11 +300,11 @@ _apply_patches:
 
 ; set the dlopen and dlsym jumps
 ; our last usage of r13, so fine to trash it.
-    add r13, 9
+    add r13, _dlopen_end - _patch_start
     sub r14, r13
     mov [rdx + _dlopen_target - _patch_start], r14d
 
-    add r13, (16 - 9)
+    add r13, (_dlsym_end - _dlopen_end)
     sub r15, r13
     mov [rdx + _dlsym_target - _patch_start], r15d
 
@@ -346,14 +346,16 @@ _patch_start:
 
 ; these are the opcodes for bnd jmp
 _dlopen:
-    db 0xf2, 0xff, 0x25
+    db 0xff, 0x25
 _dlopen_target:
     dd 0x41424344
+_dlopen_end:
 
 _dlsym:
-    db 0xf2, 0xff, 0x25
+    db 0xff, 0x25
 _dlsym_target:
     dd 0x41434344
+_dlsym_end:
 
 _patch_code:
 ; just need to push one value, but we'll overwrite the stack that was allocated
@@ -411,14 +413,13 @@ read_twice:
     mov dl, al
     mov rsi, rsp
 
-    mov al, 1
+    mov al, SYS_write
     mov edi, eax
     ; mov edi, eax
     syscall
 
 _inf:
     jmp _inf
-
 
 _str_libssl:
     db "libssl.so.3"
