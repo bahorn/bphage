@@ -156,7 +156,7 @@ _open_bin:
 ; eax should be 3 here.
 
     mov edx, STACKSPACE
-    mov rsi, rsp
+    regcopy rsi, rsp
     mov edi, eax
     xor eax, eax ; SYS_read = 0
     syscall
@@ -169,9 +169,9 @@ _open_bin:
 _find_dynamic:
 
 ; we use these to compute offsets, only for this loop.
-    mov rax, [rsp + e_shoff_offset]
+    mov eax, [rsp + e_shoff_offset]
 _find_dynamic_loop:
-    add rax, e_shentsize
+    add eax, e_shentsize
     mov ebx, [rsp + rax + sh_type_offset]
     cmp ebx, SHT_DYNAMIC
     jne _find_dynamic_loop
@@ -196,7 +196,7 @@ _read_sht_dynamic:
 ; d_tag, only care about the lower bits
     mov esi, [rsp + rbx]
 ; d_val
-    mov rdi, [rsp + rbx + 8]
+    mov edi, [rsp + rbx + 8]
 
 ; Implementing a case statement here
     cmp esi, DT_STRTAB
@@ -214,8 +214,8 @@ _case_jmprel_test:
     mov ecx, edi
 
 _read_sht_dynamic_tail:
-    add rbx, 16
-    test rsi, rsi
+    add ebx, 16
+    test esi, esi
     jnz  _read_sht_dynamic
 
 
@@ -243,7 +243,7 @@ _process_relocs:
     ; st_name
     imul edi, 24
     add edi, eax
-    mov ebx, [rdi + rsp]
+    mov ebx, [rsp + rdi]
     
     ; relname offset
     add ebx, ebp
@@ -265,17 +265,17 @@ _process_relocs_loop_tail:
     test r15, r15
     jz  _process_relocs
 
-    test r14, r15
+    test r14, r14
     jz  _process_relocs
 
 _discover_main:
-    mov rax, [rsp + e_entry_offset]
+    mov eax, [rsp + e_entry_offset]
     regcopy rbx, rax
-    add rax, main_offset
+    add eax, main_offset
 
     movsxd rax, [rsp + rax]
-    add rax, main_rip_offset
-    add rbx, rax
+    add eax, main_rip_offset
+    add ebx, eax
 
 ; start off with getting the offset to main in our buffer
     regcopy rdx, rbx
@@ -289,9 +289,9 @@ _apply_patches:
 
 ; set the dlopen and dlsym jumps
 ; our last usage of rbx, so fine to trash it.
-    add rbx, _dlopen_end - _patch_start
+    add ebx, _dlopen_end - _patch_start
     sub r14, rbx
-    add rbx, (_dlsym_end - _dlsym)
+    add ebx, (_dlsym_end - _dlsym)
     sub r15, rbx
     
     mov [rdx + _dlopen_target - _patch_start], r14d
@@ -314,12 +314,10 @@ _write_memfd:
 _execve_memfd:
     mov r8d, AT_EMPTY_PATH
     ; r10 was never used and is 0
-    xor edx, edx
     lea rsi, [rel _str_memfd_name]
     ; rdi is the same as write()
     mov eax, SYS_execveat
-    syscall
-
+    jmp _finish_exec
 ; we can move probably 2 or more instructions into the fake values we are using
 ; for dlopen and dlsym
 
@@ -341,13 +339,16 @@ _dlopen:
     db 0xff, 0x25
 _dlopen_target:
 _str_memfd_name:
-    dd 0x00000000
+    db 0
+    db 'abc'
 _dlopen_end:
 
 _dlsym:
     db 0xff, 0x25
 _dlsym_target:
-    dd 0x61626364
+_finish_exec:
+    db 0x31, 0xd2 ; xor edx, edx
+    db 0x0f, 0x05 ; syscall
 _dlsym_end:
 
 _patch_code:
@@ -393,7 +394,7 @@ _patch_code:
     call rax
 
     resolve_symbol rbx, _str_BIO_read
-    mov rbp, rax
+    regcopy rbp, rax
 
 ; reading the data twice, as the second read gets the contents.
 ; we need to use ebx here, as cx gets trashed by the call.
