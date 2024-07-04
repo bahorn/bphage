@@ -127,8 +127,15 @@ phdr:
     dd 5                                       ; p_flags
     dq phdr - $$               ; e_phoff       ; p_offset
     dq phdr                    ; e_shoff       ; p_vaddr
-    dd 0                       ; e_flags       ; p_paddr
-    dw 0x40                    ; e_ehsize
+
+; 6 bytes we can use, down to 4 because of the jump we need to do, as there is
+; no benefit from using it at the end, as that will require a long jump making
+; the savings pointless.
+_header_save:
+    add al, SYS_open
+    syscall
+    jmp _read_bin
+
     dw 0x38                    ; e_phentsize
     dw 1                       ; e_phnum       ; p_filesz
     dw 0x40                    ; e_shentsize
@@ -155,8 +162,9 @@ _open_bin:
     ; xor rdx, rdx
     ; xor rsi, rsi
     lea rdi, [rel _str_bash]
-    lea eax, [ecx + SYS_open]
-    syscall
+    jmp _header_save
+
+_read_bin:
 ; eax should be 3 here.
 
     mov edx, STACKSPACE
@@ -315,7 +323,7 @@ _write_memfd:
     syscall
 
 _execve_memfd:
-    mov r8d, AT_EMPTY_PATH
+    mov r8w, AT_EMPTY_PATH
     ; r10 was never used and is 0
     lea rsi, [rel _str_memfd_name]
     ; rdi is the same as write()
@@ -464,5 +472,4 @@ _str_req:
 _str_host:
     db "binary.golf:443"
     db 0
-
 _patch_end:

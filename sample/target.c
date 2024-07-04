@@ -4,9 +4,7 @@
 #define HOSTNAME "binary.golf:443"
 #define REQ "GET /5/5 HTTP/1.1\r\nHost: " HOSTNAME "\r\n\r\n"
 
-#define SYS_write 0x1
 #define BUFLEN 1024
-
 
 int main()
 {
