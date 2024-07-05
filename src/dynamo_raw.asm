@@ -172,7 +172,7 @@ _read_bin:
     xchg edi, eax
     xchg eax, ebx ; EBX should be 0, so got SYS_read
     syscall
-    mov r12, rax
+    ; mov r12, rax
 
 ;; Looking for .dynamic.
 ; Assumptions:
@@ -311,7 +311,8 @@ _setup_memfd:
 ; eax should be 4 now    
 
 _write_memfd:
-    mov rdx, r12
+    ; we can just use a large size
+    neg edx
     regcopy rsi, rsp
     xchg edi, eax
     mov al, SYS_write
