@@ -170,7 +170,7 @@ _read_bin:
     mov edx, STACKSPACE
     regcopy rsi, rsp
     xchg edi, eax
-    xor eax, eax ; SYS_read = 0
+    xchg eax, ebx ; EBX should be 0, so got SYS_read
     syscall
     mov r12, rax
 
@@ -286,7 +286,8 @@ _discover_main:
     add eax, main_offset
 
     movsxd rax, [rsp + rax]
-    add eax, main_rip_offset
+    ; doing some assumptions here that this won't overflow.
+    add al, main_rip_offset
     add ebx, eax
 
 ; start off with getting the offset to main in our buffer
@@ -314,11 +315,12 @@ _setup_memfd:
     lea rdi, [rel _str_memfd_name]
     mov eax, SYS_memfd_create
     syscall
-    
+; eax should be 4 now    
+
 _write_memfd:
     mov rdx, r12
     regcopy rsi, rsp
-    regcopy rdi, rax
+    xchg edi, eax
     mov al, SYS_write
     syscall
 
@@ -353,10 +355,9 @@ _dlsym:
     db 0xff, 0x25
 _dlsym_target:
 _finish_exec:
-    db 0x31, 0xd2 ; xor edx, edx
-    db 0x0f, 0x05 ; syscall
+    xor edx, edx ; db 0x31, 0xd2
+    syscall      ; db 0x0f, 0x05
 _dlsym_end:
-
 
 _patch_code:
 ; just need to push one value to keep the stack aligned for the functions we
@@ -391,7 +392,7 @@ _patch_code:
     resolve_symbol rbx, _str_BIO_ctrl
     lea rcx, [rel _str_host]
     xor edx, edx
-    mov esi, BIO_C_SET_CONNECT
+    mov sil, BIO_C_SET_CONNECT
     regcopy rdi, rbp
     call rax
 
@@ -407,23 +408,21 @@ _patch_code:
     regcopy rbp, rax
 
 ; reading the data twice, as the second read gets the contents.
-; we need to use ebx here, as cx gets trashed by the call.
     pop rdi
     pop rsi
-    ;regcopy rsi, rsp
     ; setting to the lower bits of bp, which will read enough hopefully.
-    mov dx, sp
+    mov dx, bp
     call rbp
 
     regcopy rsi, rsp
     ; rax is the len of the headers, which is big enough to hold the contents.
-    regcopy rdx, rax
+    ; we can use xchg as eax is about to get trashed.
+    xchg edx, eax
     call rbp
     
 ; print it!
     xchg edx, eax
     regcopy rsi, rsp
-
     mov al, SYS_write
     mov edi, eax
     syscall
