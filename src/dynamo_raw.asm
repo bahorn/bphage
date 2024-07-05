@@ -212,18 +212,13 @@ _read_sht_dynamic:
 
 ; Implementing a case statement here
     cmp esi, DT_STRTAB
-    jne _case_symtab_test
-    mov ebp, edi
+    cmove ebp, edi
 
-_case_symtab_test:
     cmp esi, DT_SYMTAB
-    jne _case_jmprel_test
-    xchg eax, edi
+    cmove eax, edi
 
-_case_jmprel_test:
     cmp esi, DT_JMPREL
-    jne _read_sht_dynamic_tail
-    xchg ecx, edi
+    cmove ecx, edi
 
 _read_sht_dynamic_tail:
     add ebx, 16
@@ -264,13 +259,11 @@ _process_relocs:
     ; we only need to read 4 bytes to check.
     mov ebx, [rsp + rbx]
     cmp ebx, DLOP
-    jne _case_dlsy
-    mov r14d, esi
+    cmove r14d, esi
 
 _case_dlsy:
     cmp ebx, DLSY
-    jne _process_relocs_loop_tail
-    mov r15d, esi
+    cmove r15d, esi
 
 _process_relocs_loop_tail:
 ; checking if either are 0.
