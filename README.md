@@ -1,4 +1,4 @@
-# bphage - amd64 elf with libssl - 622 bytes
+# bphage - amd64 elf with libssl - 620 bytes
 
 This is a BGGP5 entry for ELF that rus on amd64 linux, that actually uses
 dynamic linking, just not in the way you expect!
