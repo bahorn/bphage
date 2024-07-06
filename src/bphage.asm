@@ -8,7 +8,7 @@
 ; |                         |_|               (_____|                         |
 ; |                                                                           |
 ; +---------------------------------------------------------------------------+
-; |                   bah / July 2024 / #BGGP5 / 634 bytes                    |
+; |                   bah / July 2024 / #BGGP5 / 622 bytes                    |
 ; +---------------------------------------------------------------------------+
 ; |                     nasm -f bin bphage.asm -o bphage                      |
 ; +---------------------------------------------------------------------------+
@@ -86,10 +86,10 @@ BITS 64
         pop     %1
 %endmacro
 
-; We need to resolve a symbol in the patch.
-%macro  rsvlsym 2
-        lea     rsi, [rel %2]
-        ;mov     rdi, %1
+%macro  rslvsym 2
+        pop     rsi
+        push    rsi
+        add     rsi, %2 - _str_libssl
         regcopy rdi, %1
         call    _dlsym
 %endmacro
@@ -518,27 +518,8 @@ _dlsym_end:
 ; * rbp - BIO_read, scratch
 ; As they do not get trashed by the calls.
 ;
-; I did consider looking at doing just one lea to find the strings then adding
-; the difference each time, but sadly that does not seem to save bytes in this
-; case:
-;   0:  48 83 c6 0a             add    rsi,0xa
-;   4:  56                      push   rsi
-;   5:  41 5c                   pop    r12
-;   7:  48 8d 35 0a 00 00 00    lea    rsi,[rip+0xa]
-; We'd have to use a preserved register we are't already using, and those
-; require more bytes to use.
-; Each iteration would require push r11, pop rsi, add rsi const, 7 bytes each
-; time, the same as the rsi. And a setup cost as well.
-; We can't use add esi, as that will clear the top of rsi, and si uses the same
-; number of bytes as rsi proper.
-;
 ; [6] https://wiki.osdev.org/System_V_ABI
 _patch_code:
-        ; just need to push one value to keep the stack aligned for the
-        ; functions we will be calling, but we'll overwrite the stack that was
-        ; allocated before us to store our responses from the server.
-        push    rbp
-
         ; load libssl RTLD_LAZY
         ; This implements:
         ; > mov esi, RTLD_LAZY, as RTLD_LAZY is 1
@@ -547,44 +528,44 @@ _patch_code:
         inc     esi
 
         lea     rdi, [rel _str_libssl]
-        ;push    rdi
+        push    rdi
         call    _dlopen
         regcopy rbx, rax
 
         ; lets get some symbols, and setup the libssl context
-        rsvlsym rbx, _str_TLS_client_method
+        rslvsym rbx, _str_TLS_client_method
         call    rax
         regcopy rbp, rax
 
-        rsvlsym rbx, _str_SSL_CTX_new
+        rslvsym rbx, _str_SSL_CTX_new
         regcopy rdi, rbp
         call    rax
         regcopy rbp, rax
 
-        rsvlsym rbx, _str_BIO_new_ssl_connect
+        rslvsym rbx, _str_BIO_new_ssl_connect
         regcopy rdi, rbp
         call    rax
         regcopy rbp, rax
-
 
         %assign BIO_C_SET_CONNECT 0x64
 
-        rsvlsym rbx, _str_BIO_ctrl
+        rslvsym rbx, _str_BIO_ctrl
         lea     rcx, [rel _str_host]
         xor     edx, edx
         mov     sil, BIO_C_SET_CONNECT
         regcopy rdi, rbp
         call    rax
 
-        rsvlsym rbx, _str_BIO_puts
+        rslvsym rbx, _str_BIO_puts
         lea     rsi, [rel _str_req]
         regcopy rdi, rbp
         call    rax
 
+        rslvsym rbx, _str_BIO_read
+
         push    rsp
         push    rbp
 
-        rsvlsym rbx, _str_BIO_read
         regcopy rbp, rax
 
         ; Reading the data twice, as the second read gets the contents.
