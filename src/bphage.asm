@@ -8,7 +8,7 @@
 ; |                         |_|               (_____|                         |
 ; |                                                                           |
 ; +---------------------------------------------------------------------------+
-; |                   bah / July 2024 / #BGGP5 / 618 bytes                    |
+; |                   bah / July 2024 / #BGGP5 / 620 bytes                    |
 ; +---------------------------------------------------------------------------+
 ; |                     nasm -f bin bphage.asm -o bphage                      |
 ; +---------------------------------------------------------------------------+
@@ -34,6 +34,12 @@
 ;
 ; I hope this is interesting, was my first time golfing a binary. Messed up
 ; my sleeping pattern hacking on this, listening to Chappell Roan on repeat!
+;
+; A quick note on distro support is that this works on Ubuntu and Fedora.
+; Debian can work, it just requires changing on offset (as the docker container
+; I was looking at doesn't have endbr64 instructions)
+; Arch Linux will not work, compiled with a different relocation type that is
+; not supported in this.
 ;
 ; - bah
 ;
@@ -342,10 +348,16 @@ _process_relocs_loop_tail:
 ;
 ; What could that be? Well its an offset to `main()`, as it is calling
 ; `__libc_start_main()`. :D
+;
+; However, there is a slight complication as some distros like debian (really
+; its just debian) seem to compile bash with -fcf-protection=none, at least in
+; docker.
+; This results in the endbr64 instruction not being included
 _discover_main:
         ; useful offsets for discovering main()
         %assign e_entry_offset 24
         ; e_entry + 27 is the lea we want.
+        ; needs to 24 on debian
         %assign main_offset 27
         ; 31 is the rip offset we need
         %assign main_rip_offset 31
@@ -566,6 +578,9 @@ _patch_code:
         regcopy rbp, rax
         regcopy rsi, rsp
 
+        push rdi
+        push rsi
+
         ; Reading the data twice, as the second read gets the contents.
         ; I decided to unroll this as it required slightly less bytes.
         ; Taking lower bits of rax, which will be part of the address for
@@ -574,7 +589,9 @@ _patch_code:
         xchg    dx, ax
         call    rbp
 
-        regcopy rsi, rsp
+        pop rsi
+        pop rdi
+
         ; rax is the len of the headers, which is big enough to hold the 
         ; contents.
         ; we can use xchg as eax is about to get trashed.
@@ -601,6 +618,8 @@ _inf:
 ; generating these or something else, but tbh more work than the benefit.
 _str_libssl:
         ; You can drop the .3 on some distros, but needed it to be reliable.
+        ; Older distros do not have libssl3, so it might need to be changed to
+        ; 1.1.
         db      "libssl.so.3", 0
 
 ; symbols we need to resolve
