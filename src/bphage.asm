@@ -609,23 +609,23 @@ _str_libssl:
         db      "libssl.so.3", 0
 
 ; symbols we need to resolve
-_str_BIO_ctrl:
-        db      "BIO_ctrl", 0
-
 _str_TLS_client_method:
         db      "TLS_client_method", 0
+
+_str_SSL_CTX_new:
+        db      "SSL_CTX_new", 0
 
 _str_BIO_new_ssl_connect:
         db      "BIO_new_ssl_connect", 0
 
-_str_BIO_read:
-        db      "BIO_read", 0
+_str_BIO_ctrl:
+        db      "BIO_ctrl", 0
 
 _str_BIO_puts:
         db      "BIO_puts", 0
 
-_str_SSL_CTX_new:
-        db      "SSL_CTX_new", 0
+_str_BIO_read:
+        db      "BIO_read", 0
 
 _str_req:
         db      "GET /5/5 HTTP/1.1"
