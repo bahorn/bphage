@@ -8,7 +8,7 @@
 ; |                         |_|               (_____|                         |
 ; |                                                                           |
 ; +---------------------------------------------------------------------------+
-; |                   bah / July 2024 / #BGGP5 / 620 bytes                    |
+; |                   bah / July 2024 / #BGGP5 / 619 bytes                    |
 ; +---------------------------------------------------------------------------+
 ; |                     nasm -f bin bphage.asm -o bphage                      |
 ; +---------------------------------------------------------------------------+
@@ -281,11 +281,8 @@ _read_sht_dynamic_tail:
 ; * r14 - offset to dlopen
 ; * r15 - offset to dlsym
 _process_relocs:
-        ; rela_offset
-        mov     esi, [rsp + rcx]
         ; rela idx
         mov     edi, [rsp + rcx + 12]
-        add     ecx, 24
 
         ; st_name
         imul    edi, 24
@@ -301,13 +298,15 @@ _process_relocs:
         %assign DLSY 0x79736c64
         ; now we need to strcmp against one of target values.
         ; we only need to read 4 bytes to check.
+        ; we are just moving rela_offset into the register in both of these.
         cmp     dword [rsp + rbx], DLOP
-        cmove   r14d, esi
+        cmove   r14d, [rsp + rcx]
 
         cmp     dword [rsp + rbx], DLSY
-        cmove   r15d, esi
+        cmove   r15d, [rsp + rcx]
 
 _process_relocs_loop_tail:
+        add     ecx, 24
         ; test reg, reg is just a easy way to check if a register is zero, in
         ; less bytes than a compare.
         test    r15, r15
