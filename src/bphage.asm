@@ -516,7 +516,21 @@ _dlsym_end:
 ; * rbx - libssl handle
 ; * rbp - BIO_read, scratch
 ; As they do not get trashed by the calls.
-; 
+;
+; I did consider looking at doing just one lea to find the strings then adding
+; the difference each time, but sadly that does not seem to save bytes in this
+; case:
+;   0:  48 83 c6 0a             add    rsi,0xa
+;   4:  56                      push   rsi
+;   5:  41 5c                   pop    r12
+;   7:  48 8d 35 0a 00 00 00    lea    rsi,[rip+0xa]
+; We'd have to use a preserved register we are't already using, and those
+; require more bytes to use.
+; Each iteration would require push r11, pop rsi, add rsi const, 7 bytes each
+; time, the same as the rsi. And a setup cost as well.
+; We can't use add esi, as that will clear the top of rsi, and si uses the same
+; number of bytes as rsi proper.
+;
 ; [6] https://wiki.osdev.org/System_V_ABI
 _patch_code:
         ; just need to push one value to keep the stack aligned for the
