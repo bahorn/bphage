@@ -89,7 +89,8 @@ BITS 64
 ; We need to resolve a symbol in the patch.
 %macro  rsvlsym 2
         lea     rsi, [rel %2]
-        mov     rdi, %1
+        ;mov     rdi, %1
+        regcopy rdi, %1
         call    _dlsym
 %endmacro
 
@@ -546,6 +547,7 @@ _patch_code:
         inc     esi
 
         lea     rdi, [rel _str_libssl]
+        ;push    rdi
         call    _dlopen
         regcopy rbx, rax
 
