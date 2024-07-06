@@ -2,6 +2,6 @@ FROM fedora:latest
 
 # RUN apt update && apt install -y strace gdb elfutils
 
-COPY ./dynamo-raw.elf /dynamo.elf
+COPY ./bphage.elf /bphage.elf
 
-CMD /dynamo.elf
+CMD /bphage.elf

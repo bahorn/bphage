@@ -166,7 +166,6 @@ _open_bin:
 
 _read_bin:
 ; eax should be 3 here.
-
     mov edx, STACKSPACE
     regcopy rsi, rsp
     xchg edi, eax

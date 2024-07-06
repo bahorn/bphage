@@ -1,9 +1,10 @@
 *.pyc
 __pycache__
 new
-pocs/payload/payload.bin
-pocs/minelf/
-src/*.o
-dynamo*.elf
 sample/test.c
-sample/a.out
+old/pocs/payload/payload.bin
+old/pocs/minelf/
+old/pocs/mindl/
+old/pocs/compression
+*.elf
+old/execve/execve
