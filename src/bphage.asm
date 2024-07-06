@@ -8,7 +8,7 @@
 ; |                         |_|               (_____|                         |
 ; |                                                                           |
 ; +---------------------------------------------------------------------------+
-; |                   bah / July 2024 / #BGGP5 / 619 bytes                    |
+; |                   bah / July 2024 / #BGGP5 / 618 bytes                    |
 ; +---------------------------------------------------------------------------+
 ; |                     nasm -f bin bphage.asm -o bphage                      |
 ; +---------------------------------------------------------------------------+
@@ -559,17 +559,15 @@ _patch_code:
 
         rslvsym rbx, _str_BIO_read
 
-        push    rsp
-        push    rbp
-
+        regcopy rdi, rbp
         regcopy rbp, rax
+        regcopy rsi, rsp
 
         ; Reading the data twice, as the second read gets the contents.
         ; I decided to unroll this as it required slightly less bytes.
-        pop     rdi
-        pop     rsi
-        ; setting to the lower bits of bp, which will read enough hopefully.
-        mov     dx, bp
+        ; Taking lower bits of rax, which will be part of the address for
+        ; BIO_read
+        xchg    dx, ax
         call    rbp
 
         regcopy rsi, rsp
