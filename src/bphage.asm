@@ -356,6 +356,9 @@ _discover_main:
 
         movsxd  rax, [rsp + rax]
         ; doing some assumptions here that this won't overflow.
+        ; Probably the most questionable optimization I'm doing, known by the
+        ; state of california to cause cancer and / or birth defects or other
+        ; reproductive harm.
         add     al, main_rip_offset
         add     ebx, eax
 
@@ -566,7 +569,8 @@ _patch_code:
         ; Reading the data twice, as the second read gets the contents.
         ; I decided to unroll this as it required slightly less bytes.
         ; Taking lower bits of rax, which will be part of the address for
-        ; BIO_read
+        ; BIO_read.
+        ; Another one of the more questionable optimizations.
         xchg    dx, ax
         call    rbp
 
