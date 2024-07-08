@@ -553,7 +553,7 @@ _dlsym_end:
 ; It'll malloc everything by itself, so as long as we are fine trashing the
 ; stack we don't need to really do any other memory allocations.
 ; 
-; Should note I had to pay a lot of attention to the SYS V ABI[6], which heavily
+; Should note I had to pay a lot of attention to the SYS V ABI[7], which heavily
 ; restricted which registers I could use, as many registers get trashed when we
 ; call into libssl and libc.
 ;
@@ -563,7 +563,7 @@ _dlsym_end:
 ; * rbp - BIO_read, scratch
 ; As they do not get trashed by the calls.
 ;
-; [6] https://wiki.osdev.org/System_V_ABI
+; [7] https://wiki.osdev.org/System_V_ABI
 _patch_code:
         ; load libssl RTLD_LAZY
         ; This implements:
