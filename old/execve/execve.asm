@@ -46,7 +46,7 @@ _step2: ; also p_align
 argv_0:
         db          "/bin/curl", 0
 argv_1:
-        db          "-L", 0
+        db          "-L"
 argv_2: ; including "https://" in the url (8 bytes) is 1 byte more expensive
         ; than including -L
-        db          "binary.golf/5/5"
+        db          "binary.golf/6/6"
